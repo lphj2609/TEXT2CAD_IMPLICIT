@@ -1,65 +1,65 @@
-# Text2CAD-Implicit 실행 파일 설명
+# Text2CAD-Implicit Runfiles Description
 
-`text2cad_implicit_runfiles.zip`에 포함된 파일들과 사용 방법을 간략히 정리한 문서입니다.  
-압축 해제 후 프로젝트 루트(`D:\doosan`)에 동일한 디렉터리 구조로 복원하여 사용하세요.
-
----
-
-## 포함 파일 목록
-
-| 경로 | 설명 |
-|------|------|
-| `train_pipeline.py` | **학습 메인 진입점**. MoE + Multi-task SFT + GRPO + KD + (옵션) Text2CAD 통합 학습. |
-| `run_pdf_to_implicit_mesh.py` | **전체 파이프라인 원샷 실행**. 학습 → PDF 프롬프트 추출 → implicit 메쉬(PLY) 생성까지 한 번에 수행. |
-| `run_text2cad_implicit_mesh.py` | **추론/메쉬 생성**. Text2CAD + ImplicitMeshDecoder + SDF + marching_cubes로 PLY 생성. CLI 옵션 지원. |
-| `run_text2cad_implicit_mesh_2.py` | 위와 동일 파이프라인의 **설정 분리 실험용** 복제본. |
-| `scripts/run_train_with_occ.bat` | **OCC 환경으로 학습 실행** (Windows). `.occ_env` Python으로 `train_pipeline.py` 실행, OpenCASCADE DLL 경로 설정. |
-| `config/model_config.yaml` | MoE, GRPO, Text2CAD 사용 여부, 데이터 경로 등 **전체 설정** 파일. |
+This document briefly describes the contents of `text2cad_implicit_runfiles.zip` and how to use them.  
+After extracting the archive, restore the files under the project root (`D:\doosan`) with the same directory layout.
 
 ---
 
-## 실행 방법 요약
+## Included Files
 
-### 1. 학습만 수행
+| Path | Description |
+|------|-------------|
+| `train_pipeline.py` | **Main training entry point**. MoE + Multi-task SFT + GRPO + KD + (optional) Text2CAD integrated training. |
+| `run_pdf_to_implicit_mesh.py` | **Full pipeline one-shot run**. Runs training → PDF prompt extraction → implicit mesh (PLY) generation in one go. |
+| `run_text2cad_implicit_mesh.py` | **Inference / mesh generation**. Text2CAD + ImplicitMeshDecoder + SDF + marching_cubes to produce PLY. Supports CLI options. |
+| `run_text2cad_implicit_mesh_2.py` | **Experiment clone** of the same pipeline with a separate config. |
+| `scripts/run_train_with_occ.bat` | **Run training with OCC environment** (Windows). Runs `train_pipeline.py` with `.occ_env` Python and sets OpenCASCADE DLL paths. |
+| `config/model_config.yaml` | **Global config**: MoE, GRPO, Text2CAD flags, data paths, etc. |
+
+---
+
+## How to Run
+
+### 1. Training only
 
 ```bash
-# 일반 Python/conda 환경
+# Default Python/conda environment
 python train_pipeline.py
 
-# OpenCASCADE 사용 시 (Windows, .occ_env 있을 때)
+# With OpenCASCADE (Windows, when .occ_env exists)
 scripts\run_train_with_occ.bat
 ```
 
-### 2. 학습부터 메쉬 생성까지 한 번에
+### 2. Full pipeline (training → mesh generation)
 
 ```bash
 cd D:\doosan
 python run_pdf_to_implicit_mesh.py
 ```
 
-- 출력: `checkpoints/text2cad/` (체크포인트·CAD 샘플), `checkpoints/text2cad_implicit_mesh/` (PLY 메쉬)
+- Outputs: `checkpoints/text2cad/` (checkpoints and CAD samples), `checkpoints/text2cad_implicit_mesh/` (PLY meshes).
 
-### 3. 이미 학습된 모델로 메쉬만 생성
+### 3. Mesh generation with a trained model only
 
 ```bash
 python run_text2cad_implicit_mesh.py --prompt "..." --output-dir ... [--cad-latent-path ...]
 ```
 
-- `run_text2cad_implicit_mesh_2.py`는 별도 실험 설정용으로 동일한 방식으로 실행.
+- Use `run_text2cad_implicit_mesh_2.py` the same way for separate experiment configs.
 
 ---
 
-## 의존성 및 경로
+## Dependencies and Paths
 
-- 실행 시 프로젝트 루트가 `D:\doosan`이어야 하며, `src/`, `config/` 등 전체 레포 구조가 필요합니다.
-- zip에는 **실행/설정에 필요한 진입점만** 포함되어 있습니다. `src/` 내 모델·데이터 코드는 별도로 두거나 전체 레포를 사용하세요.
-- 상세 파이프라인 구성은 `PIPELINE_OVERVIEW_TEXT2CAD_IMPLICIT.md`를 참고하세요.
+- The project root must be `D:\doosan` at run time; the full repo layout (e.g. `src/`, `config/`) is required.
+- The zip contains **only the entry scripts and config** needed to run. Keep the rest of the repo (e.g. model and data code under `src/`) in place or use the full repository.
+- For pipeline details, see `PIPELINE_OVERVIEW_TEXT2CAD_IMPLICIT.md`.
 
 ---
 
-## zip 재생성
+## Regenerating the zip
 
-`model/make_runfiles_zip.py`를 실행하면 동일한 목록으로 `text2cad_implicit_runfiles.zip`을 다시 만들 수 있습니다.
+Run `model/make_runfiles_zip.py` to recreate `text2cad_implicit_runfiles.zip` with the same file list:
 
 ```bash
 python D:\doosan\model\make_runfiles_zip.py
