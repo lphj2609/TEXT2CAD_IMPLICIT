@@ -1,0 +1,104 @@
+# Doosan MoE + Multi-task SFT + GRPO + Knowledge Distillation Config
+# 참고: MODEL_ARCHITECTURE_2.md
+
+model:
+  use_plm_embedding: false  # true: BERT embedding, false: Step3 preprocessing (PLM 제외)
+  # MoE (Mixture of Experts) - source 기반 Expert 생성
+  num_experts: 8
+  use_3d_experts: true  # true: 3D 모델 생성 Agent 4개 추가 (총 12개 전문가)
+  expert_dim: 3072  # input_dim * 4
+  experts_from_source: true  # D:\doosan\source PDF별 Expert 생성
+  capacity_factor_train: 1.25
+  capacity_factor_eval: 2.0
+  loss_coef: 0.01  # 전문가 균형 보조 손실
+  
+  # Multi-task SFT
+  base_model_dim: 768
+  num_tasks: 5  # diagnostic_code, manual_mapping, equipment_typing, risk_assessment, report_gen
+  hidden_dim: 2048
+  num_shared_layers: 2
+  
+  # GRPO
+  learning_rate: 1.0e-5
+  gamma: 0.99
+  clip_epsilon: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  reward_weights:
+    accuracy: 0.5
+    safety: 0.3
+    style: 0.2
+  
+  # Knowledge Distillation
+  temperature: 4.0
+  alpha: 0.7  # distillation loss 가중치
+  student_hidden_dim: 2048
+  use_distillation: true
+
+data:
+  pdf_source_dir: "source"  # D:\doosan\source (프로젝트 루트/source)
+  experts_from_source: true  # source 내 PDF에 따라 Expert 개수/이름 결정
+  # 메모리 절감을 위해 시퀀스 길이와 배치 사이즈 축소
+  max_seq_length: 256
+  batch_size: 4
+  num_workers: 0
+  # Step 3 ColPali (optional, 메모리 사용량 큼)
+  use_colpali: false
+  colpali_model: "vidore/colpali"
+  colpali_index_name: "doosan_index"
+  colpali_index_root: ".byaldi"
+  # Step 8 Qwen2-VL (대형 비전-언어 모델, 메모리 사용량이 커서 기본 비활성화)
+  qwen2vl_model: "Qwen/Qwen2-VL-2B-Instruct"  # CPU 최적화
+  qwen2vl_model_gpu: "Qwen/Qwen2-VL-7B-Instruct"
+  use_qwen2vl: false
+  cpu_optimized: true  # CPU 시 2B + 스레드 최적화
+
+training:
+  # SFT + GRPO + KD 모두 실행 (에폭은 작게)
+  num_epochs_sft: 2
+  num_epochs_grpo: 1
+  num_epochs_distill: 1
+
+debug:
+  # true 시, 전체 파이프라인을 빠르게 돌리기 위한 초경량 모드
+  fast_mode: false
+  # prepare_data_from_pdfs에서 사용할 최대 샘플 수 (0이면 전체 사용)
+  sample_limit: 64
+
+# Text2CAD 통합 (MoE 고도화 학습)
+# use_text2cad: true 시 DoosanText2CAD로 SFT → GRPO → KD 진행
+# text2cad:
+#   use_text2cad: false  # true: Text2CAD + MoE 파이프라인 사용
+#   config_path: "src/models/Text2CAD/Cad_VLM/config/trainer.yaml"
+#   cad_seq_dir: ""      # DeepCAD 벡터 루트 (예: path/to/cad_vec)
+#   prompt_path: ""      # 텍스트 프롬프트 CSV
+#   split_filepath: ""   # train/val/test split JSON
+#   num_epochs_sft: 20
+#   num_epochs_grpo: 5
+#   num_epochs_distill: 5
+#   lr: 0.0001
+#   checkpoint_dir: "checkpoints/text2cad"
+
+text2cad:
+  # 메모리 절감을 위해 기본값을 false 로 두고, 필요할 때만 별도 스크립트에서 실행
+  use_text2cad: false
+  cad_seq_dir: "data/text2cad_sample/cad_vec"      # DeepCAD 벡터 루트 경로 (샘플 데이터)
+  prompt_path: "data/text2cad_sample/prompts.csv"  # 텍스트 프롬프트 CSV 경로
+  split_filepath: "data/text2cad_sample/split.json" # train/val/test split JSON 경로
+  num_epochs_sft: 20
+  num_epochs_grpo: 5
+  num_epochs_distill: 5
+  lr: 0.0001
+  checkpoint_dir: "checkpoints/text2cad"
+  # CAD 생성 직후 WorldFusionRenderer 연동 (true 시 STEP → PartCAD + WorldGen/Astra/C³)
+  use_worldfusion_after_cad: true
+
+rag:
+  # 속도 우선: LightRAG는 비활성화 (unstructured만 사용)
+  use_lightrag: false
+  working_dir: "./doosan"
+  top_k: 20
+  max_chunks: 12
+  questions:
+    - "Compressor Diagnostic Code 30(High Airend Discharge Temperature)의 원인과 해결 절차는 무엇인가요?"
+    - "기타 궁금한 질의 2"
